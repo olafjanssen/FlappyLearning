@@ -29,7 +29,7 @@ var level1 = {
         this.text = game.add.text(0, 0, "Score: " + this.score, style);
 
         // P1: SHIP (BOTTOM)
-        this.p1ship = game.add.sprite(250, 600, 'p1ship');
+        this.p1ship = game.add.sprite(350, 600, 'p1ship');
         this.p1ship.scale.setTo(0.25, 0.25);
         game.physics.arcade.enable(this.p1ship);
         this.p1ship.body.collideWorldBounds = true;
@@ -38,20 +38,10 @@ var level1 = {
         this.cursors = game.input.keyboard.createCursorKeys();
 
         // P2: SHIP
-        this.p2ship = game.add.sprite(250, 100, 'p2ship');
+        this.p2ship = game.add.sprite(350, 100, 'p2ship');
         this.p2ship.scale.setTo(0.25, 0.25);
         game.physics.arcade.enable(this.p2ship);
         this.p2ship.body.collideWorldBounds = true;
-
-//        this.p2ship.x = Math.random() * 600 + 50;
-//        this.p2ship.y = Math.random() * 600 + 50;
-//        this.p2ship.body.velocity.x = 0;
-//        this.p2ship.body.velocity.y = 0;
-//
-//        this.p1ship.x = Math.random() * 600 + 50;
-//        this.p1ship.y = Math.random() * 600 + 50;
-//        this.p1ship.body.velocity.x = 0;
-//        this.p1ship.body.velocity.y = 0;
 
         this.score = 0;
 
@@ -89,27 +79,13 @@ var level1 = {
         this.p2ship.body.velocity.x *= 0.95;
         this.p2ship.body.velocity.y *= 0.95;
 
-        /*
-                this.p1ship.body.acceleration.x = 0;
-                this.p1ship.body.acceleration.y = 0;
-                if (this.cursors.left.isDown) {
-                    this.p1ship.body.acceleration.x += -600;
-                } else if (this.cursors.right.isDown) {
-                    this.p1ship.body.acceleration.x += 600;
-                }
-                if (this.cursors.up.isDown) {
-                    this.p1ship.body.acceleration.y += -600;
-                } else if (this.cursors.down.isDown) {
-                    this.p1ship.body.acceleration.y += 600;
-                }
-        */
-
         var output = this.onComputeInput([
             this.p1ship.x / 760, this.p1ship.y / 760,
-            (this.p1ship.body.velocity.x+200) / 400, (this.p1ship.body.velocity.x+200) / 200,
+            (this.p1ship.body.velocity.x + 200) / 400, (this.p1ship.body.velocity.y + 200) / 200,
             this.p2ship.x / 760, this.p2ship.y / 760,
-            (this.p2ship.body.velocity.x+200) / 400, (this.p2ship.body.velocity.x+200) / 200,
-])
+            (this.p2ship.body.velocity.x + 200) / 400, (this.p2ship.body.velocity.y + 200) / 200,
+        ]);
+
         this.p1ship.body.acceleration.x = 0;
         this.p1ship.body.acceleration.y = 0;
         if (output[0] > 0.5) {
@@ -149,6 +125,7 @@ var manager = (function () {
 
     function start(level) {
         game = new Phaser.Game(760, 760, Phaser.AUTO, 'game');
+
         level.onGameOver = this.handleEndGame;
         level.onComputeInput = this.handleCompute;
 

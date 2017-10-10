@@ -1,0 +1,24 @@
+{
+  "name": "game-ai",
+  "version": "1.0.0",
+  "description": "Program that learns to play Flappy Bird by machine learning ([Neuroevolution](http://www.scholarpedia.org/article/Neuroevolution))",
+  "main": "index.js",
+  "dependencies": {
+    "matter": "^0.2.0",
+    "matter-js": "^0.13.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/olafjanssen/game-ai.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/olafjanssen/game-ai/issues"
+  },
+  "homepage": "https://github.com/olafjanssen/game-ai#readme"
+}
