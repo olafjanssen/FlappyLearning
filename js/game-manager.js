@@ -3,32 +3,46 @@ var manager = (function () {
     var generation = 0;
     var games = [];
     var renderers = [];
+    var storedResults = [];
     var par = 20,
-        maxScore = 0;
+        maxScore = 0,
+        lastBestScore = 0,
+        isStopped = false,
+        Neuvol = null;
 
     function start() {
+        isStopped = false;
+        if (Neuvol) {
+            nextGame();
+            return;
+        }
+
         Neuvol = new Neuroevolution({
             population: 20,
             lowHistoric: true,
             network: [8, [6], 4],
         });
 
-        for (var r = 0; r < par; r++) {
-            var render = Matter.Render.create({
-                element: document.getElementById('game-container'),
-                engine: Matter.Engine.create(),
-                options: {
-                    width: 760,
-                    height: 760,
-                    wireframes: false
-                }
-            });
-            renderers.push(render);
-            Matter.Render.run(render);
-        }
+//        for (var r = 0; r < par; r++) {
+//            var render = Matter.Render.create({
+//                element: document.getElementById('game-container'),
+//                engine: Matter.Engine.create(),
+//                options: {
+//                    width: 760,
+//                    height: 760,
+//                    wireframes: false
+//                }
+//            });
+//            renderers.push(render);
+//            Matter.Render.run(render);
+//        }
 
         this.generation = 0;
         this.startGeneration();
+    }
+
+    function stop() {
+        isStopped = true;
     }
 
     function startGeneration() {
@@ -48,6 +62,10 @@ var manager = (function () {
     }
 
     function nextGame() {
+        console.log(isStopped);
+        if (isStopped) {
+            return;
+        }
         // spawn number of parallel games
         var parNow = 0;
 
@@ -67,7 +85,7 @@ var manager = (function () {
 
                     nextGame();
                 };
-                row.game.onerror = function(e) {
+                row.game.onerror = function (e) {
                     console.log('error:', e);
                 };
             }
@@ -76,15 +94,51 @@ var manager = (function () {
         if (games.filter(function (row) {
                 return row.score === undefined;
             }).length === 0) {
+
+            var bestScore =
+                games.reduce(
+                    (acc, val) => {
+                        var isMax = (acc[1] == undefined || val.score > acc[1]);
+                        acc[0] = isMax ? val.game : acc[0];
+                        acc[1] = isMax ? val.score : acc[1];
+                        acc[2] = isMax ? val.boid : acc[2];
+                        return acc;
+                    }, []
+                );
+            console.log(bestScore, lastBestScore);
+            if (bestScore[1] > lastBestScore) {
+                lastBestScore = bestScore[1];
+                // store best of generation
+                var x = document.getElementById("brains");
+                var option = document.createElement("option");
+                option.text = '' + generation + '. ' + bestScore[1];
+                x.add(option);
+                storedResults.push(bestScore[2]);
+            }
+
             startGeneration();
         }
     }
 
+    document.getElementById('brains').addEventListener('change', function () {
+        document.getElementById('game-container').innerHTML = "";
+        var game = new GameAI(storedResults[document.getElementById('brains').selectedIndex], false, false);
+        var playable = new GameAI(storedResults[document.getElementById('brains').selectedIndex], false, true);
+    });
+
+
     return {
         start: start,
+        stop: stop,
         startGeneration: startGeneration,
         nextGame: nextGame,
     }
 })();
 
-manager.start();
+document.getElementById('startbutton').addEventListener('click', function () {
+    manager.start();
+});
+
+document.getElementById('stopbutton').addEventListener('click', function () {
+    manager.stop();
+});
