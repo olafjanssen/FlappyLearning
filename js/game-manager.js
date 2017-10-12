@@ -1,41 +1,43 @@
+/* global window, Neuroevolution, document, GameAI */
+
 var manager = (function () {
     var gen;
     var generation = 0;
     var games = [];
-    var renderers = [];
+//    var renderers = [];
     var storedResults = [];
     var par = 20,
         maxScore = 0,
         lastBestScore = 0,
         isStopped = false,
-        Neuvol = null;
+        neuvol = null;
 
     function start() {
         isStopped = false;
-        if (Neuvol) {
+        if (neuvol) {
             nextGame();
             return;
         }
 
-        Neuvol = new Neuroevolution({
+        neuvol = new Neuroevolution({
             population: 20,
             lowHistoric: true,
             network: [8, [6], 4],
         });
 
-//        for (var r = 0; r < par; r++) {
-//            var render = Matter.Render.create({
-//                element: document.getElementById('game-container'),
-//                engine: Matter.Engine.create(),
-//                options: {
-//                    width: 760,
-//                    height: 760,
-//                    wireframes: false
-//                }
-//            });
-//            renderers.push(render);
-//            Matter.Render.run(render);
-//        }
+        //        for (var r = 0; r < par; r++) {
+        //            var render = Matter.Render.create({
+        //                element: document.getElementById('game-container'),
+        //                engine: Matter.Engine.create(),
+        //                options: {
+        //                    width: 760,
+        //                    height: 760,
+        //                    wireframes: false
+        //                }
+        //            });
+        //            renderers.push(render);
+        //            Matter.Render.run(render);
+        //        }
 
         this.generation = 0;
         this.startGeneration();
@@ -46,9 +48,8 @@ var manager = (function () {
     }
 
     function startGeneration() {
-        gen = Neuvol.nextGeneration();
+        gen = neuvol.nextGeneration();
         generation++;
-        console.log(generation, maxScore, gen);
 
         games = gen.map(function (boid) {
             return {
@@ -62,23 +63,25 @@ var manager = (function () {
     }
 
     function nextGame() {
-        console.log(isStopped);
         if (isStopped) {
             return;
         }
         // spawn number of parallel games
         var parNow = 0;
 
-        games.forEach(function (row, index) {
+        games.forEach(function (row) {
             if (!row.game && parNow < par) {
                 var boid = row.boid;
                 parNow++;
 
-                row.game = new Worker('js/game-worker.js');
-                row.game.postMessage(boid);
+                row.game = new window.Worker('js/game-worker.js');
+                row.game.postMessage({
+                    name: 'specie',
+                    specie: boid
+                });
                 row.game.onmessage = function (e) {
                     var score = e.data;
-                    Neuvol.networkScore(boid, score);
+                    neuvol.networkScore(boid, score);
                     row.score = score;
 
                     maxScore = Math.max(maxScore, score);
@@ -86,7 +89,7 @@ var manager = (function () {
                     nextGame();
                 };
                 row.game.onerror = function (e) {
-                    console.log('error:', e);
+                    window.console.log('error:', e);
                 };
             }
         });
@@ -97,7 +100,7 @@ var manager = (function () {
 
             var bestScore =
                 games.reduce(
-                    (acc, val) => {
+                    function(acc, val) {
                         var isMax = (acc[1] == undefined || val.score > acc[1]);
                         acc[0] = isMax ? val.game : acc[0];
                         acc[1] = isMax ? val.score : acc[1];
@@ -105,7 +108,7 @@ var manager = (function () {
                         return acc;
                     }, []
                 );
-            console.log(bestScore, lastBestScore);
+
             if (bestScore[1] > lastBestScore) {
                 lastBestScore = bestScore[1];
                 // store best of generation
@@ -122,10 +125,9 @@ var manager = (function () {
 
     document.getElementById('brains').addEventListener('change', function () {
         document.getElementById('game-container').innerHTML = "";
-        var game = new GameAI(storedResults[document.getElementById('brains').selectedIndex], false, false);
-        var playable = new GameAI(storedResults[document.getElementById('brains').selectedIndex], false, true);
+        new GameAI(storedResults[document.getElementById('brains').selectedIndex], false, false);
+        new GameAI(storedResults[document.getElementById('brains').selectedIndex], false, true);
     });
-
 
     return {
         start: start,

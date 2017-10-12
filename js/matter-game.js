@@ -1,6 +1,7 @@
+/* global window, document, self, Matter */
+
 var activation = function (a) {
-    ap = (-a) / 1;
-    return (1 / (1 + Math.exp(ap)))
+    return (1 / (1 + Math.exp((-a) / 1)))
 };
 
 /**
@@ -10,16 +11,18 @@ var activation = function (a) {
  * @return Network output.
  */
 var compute = function (net, inputs) {
+    var i, j;
+
     // Set the value of each Neuron in the input layer.
-    for (var i in inputs) {
+    for (i in inputs) {
         if (net.layers[0] && net.layers[0].neurons[i]) {
             net.layers[0].neurons[i].value = inputs[i];
         }
     }
 
     var prevLayer = net.layers[0]; // Previous layer is input layer.
-    for (var i = 1; i < net.layers.length; i++) {
-        for (var j in net.layers[i].neurons) {
+    for (i = 1; i < net.layers.length; i++) {
+        for (j in net.layers[i].neurons) {
             // For each Neuron in each layer.
             var sum = 0;
             for (var k in prevLayer.neurons) {
@@ -38,13 +41,16 @@ var compute = function (net, inputs) {
     // All outputs of the Network.
     var out = [];
     var lastLayer = net.layers[net.layers.length - 1];
-    for (var i in lastLayer.neurons) {
+    for (i in lastLayer.neurons) {
         out.push(lastLayer.neurons[i].value);
     }
     return out;
 }
 
 var GameAI = function (boid, isLearning, isPlayable) {
+    if (!boid) {
+        return;
+    }
 
     var keys = [];
     if (isPlayable) {
@@ -110,9 +116,9 @@ var GameAI = function (boid, isLearning, isPlayable) {
     Events.on(engine, "beforeUpdate", function () {
         // update enemy
         if (isPlayable) {
-            var output = [keys[39], keys[37], keys[40], keys[38]];
-            var pushDirection = Matter.Vector.create((output[0] > 0.5 ? 1 : 0) - (output[1] > 0.5 ? 1 : 0), (output[2] > 0.5 ? 1 : 0) - (output[3] > 0.5 ? 1 : 0));
-            Matter.Body.applyForce(boxA, boxA.position, Matter.Vector.mult(pushDirection, 0.0003));
+            var keyInput = [keys[39], keys[37], keys[40], keys[38]];
+            var pushPlayerDirection = Matter.Vector.create((keyInput[0] > 0.5 ? 1 : 0) - (keyInput[1] > 0.5 ? 1 : 0), (keyInput[2] > 0.5 ? 1 : 0) - (keyInput[3] > 0.5 ? 1 : 0));
+            Matter.Body.applyForce(boxA, boxA.position, Matter.Vector.mult(pushPlayerDirection, 0.0003));
         } else {
             var forceDirection = Matter.Vector.normalise(Matter.Vector.sub(boxB.position, boxA.position));
             Matter.Body.applyForce(boxA, boxA.position, Matter.Vector.mult(forceDirection, 0.0003));
@@ -147,6 +153,19 @@ var GameAI = function (boid, isLearning, isPlayable) {
         });
     });
 
+    function upd() {
+        if (engine.timestamp > 30000) {
+            running = false;
+            return;
+        }
+
+        Matter.Engine.update(engine);
+        if (running) {
+            window.requestAnimationFrame(function () {
+                upd();
+            });
+        }
+    }
 
     if (isLearning) {
         for (var frame = 0; frame < 1000; frame++) {
@@ -156,25 +175,13 @@ var GameAI = function (boid, isLearning, isPlayable) {
             Matter.Engine.update(engine);
         }
 
-        postMessage(score);
-        close();
+        self.postMessage(score);
+        self.close();
 
     } else {
-        function upd() {
-            if (engine.timestamp > 30000) {
-                running = false;
-                onEnd(score);
-                return;
-            }
-
-            Matter.Engine.update(engine);
-            if (running) {
-                requestAnimationFrame(function () {
-                    upd();
-                });
-            }
-        }
         upd();
     }
 
 }
+
+GameAI();
