@@ -4,7 +4,7 @@ var manager = (function () {
     var gen;
     var generation = 0;
     var games = [];
-//    var renderers = [];
+    //    var renderers = [];
     var storedResults = [];
     var par = 20,
         maxScore = 0,
@@ -100,7 +100,7 @@ var manager = (function () {
 
             var bestScore =
                 games.reduce(
-                    function(acc, val) {
+                    function (acc, val) {
                         var isMax = (acc[1] == undefined || val.score > acc[1]);
                         acc[0] = isMax ? val.game : acc[0];
                         acc[1] = isMax ? val.score : acc[1];
@@ -125,8 +125,16 @@ var manager = (function () {
 
     document.getElementById('brains').addEventListener('change', function () {
         document.getElementById('game-container').innerHTML = "";
-        new GameAI(storedResults[document.getElementById('brains').selectedIndex], false, false);
-        new GameAI(storedResults[document.getElementById('brains').selectedIndex], false, true);
+        new GameAI({
+            specie: storedResults[document.getElementById('brains').selectedIndex],
+            isLearning: false,
+            isPlayable: false
+        });
+        new GameAI({
+            specie: storedResults[document.getElementById('brains').selectedIndex],
+            isLearning: false,
+            isPlayable: true
+        });
     });
 
     return {

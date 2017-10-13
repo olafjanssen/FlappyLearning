@@ -1,7 +1,7 @@
 /* global window, document, self, Matter */
 
 var activation = function (a) {
-    return (1 / (1 + Math.exp((-a) / 1)))
+    return (1 / (1 + Math.exp((-a) / 1)));
 };
 
 /**
@@ -45,21 +45,28 @@ var compute = function (net, inputs) {
         out.push(lastLayer.neurons[i].value);
     }
     return out;
-}
+};
 
-var GameAI = function (boid, isLearning, isPlayable) {
-    if (!boid) {
+var GameAI = function (options) {
+    if (!options) {
         return;
     }
 
+    var defaultOptions = {
+        specie: null,
+        isLearning: false,
+        isPlayable: false
+    };
+    options = Object.assign(defaultOptions, options);
+
     var keys = [];
-    if (isPlayable) {
+    if (options.isPlayable) {
         window.onkeyup = function (e) {
             keys[e.keyCode] = false;
-        }
+        };
         window.onkeydown = function (e) {
             keys[e.keyCode] = true;
-        }
+        };
     }
 
     var Engine = Matter.Engine,
@@ -72,7 +79,7 @@ var GameAI = function (boid, isLearning, isPlayable) {
 
     var engine = Engine.create();
 
-    if (!isLearning) {
+    if (!options.isLearning) {
         var render = Render.create({
             element: document.getElementById('game-container'),
             //        canvas: document.getElementById('game'),
@@ -115,7 +122,7 @@ var GameAI = function (boid, isLearning, isPlayable) {
 
     Events.on(engine, "beforeUpdate", function () {
         // update enemy
-        if (isPlayable) {
+        if (options.isPlayable) {
             var keyInput = [keys[39], keys[37], keys[40], keys[38]];
             var pushPlayerDirection = Matter.Vector.create((keyInput[0] > 0.5 ? 1 : 0) - (keyInput[1] > 0.5 ? 1 : 0), (keyInput[2] > 0.5 ? 1 : 0) - (keyInput[3] > 0.5 ? 1 : 0));
             Matter.Body.applyForce(boxA, boxA.position, Matter.Vector.mult(pushPlayerDirection, 0.0003));
@@ -125,7 +132,7 @@ var GameAI = function (boid, isLearning, isPlayable) {
         }
 
         // update AI player
-        var output = compute(boid, [
+        var output = compute(options.specie, [
                     boxA.position.x / 760, boxA.position.y / 760,
             (boxA.velocity.x + 4) / 8, (boxA.velocity.y + 4) / 8,
                     boxB.position.x / 760, boxB.position.y / 760,
@@ -167,7 +174,7 @@ var GameAI = function (boid, isLearning, isPlayable) {
         }
     }
 
-    if (isLearning) {
+    if (options.isLearning) {
         for (var frame = 0; frame < 1000; frame++) {
             if (!running) {
                 break;
@@ -182,6 +189,6 @@ var GameAI = function (boid, isLearning, isPlayable) {
         upd();
     }
 
-}
+};
 
 GameAI();
