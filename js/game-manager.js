@@ -1,6 +1,8 @@
 /* global window, Neuroevolution, document, GameAI */
 
 var manager = (function () {
+    "use strict";
+
     var gen;
     var generation = 0;
     var games = [];
@@ -77,7 +79,7 @@ var manager = (function () {
                 row.game = new window.Worker('js/game-worker.js');
                 row.game.postMessage({
                     name: 'specie',
-                    specie: boid
+                    specie: boid.getSave() // send serialized form of network
                 });
                 row.game.onmessage = function (e) {
                     var score = e.data;
@@ -111,6 +113,7 @@ var manager = (function () {
 
             if (bestScore[1] > lastBestScore) {
                 lastBestScore = bestScore[1];
+
                 // store best of generation
                 var x = document.getElementById("brains");
                 var option = document.createElement("option");
@@ -125,13 +128,16 @@ var manager = (function () {
 
     document.getElementById('brains').addEventListener('change', function () {
         document.getElementById('game-container').innerHTML = "";
+        var specie = storedResults[document.getElementById('brains').selectedIndex];
+        specie.compute = specie.compute.bind(specie);
+
         new GameAI({
-            specie: storedResults[document.getElementById('brains').selectedIndex],
+            compute: specie.compute,
             isLearning: false,
             isPlayable: false
         });
         new GameAI({
-            specie: storedResults[document.getElementById('brains').selectedIndex],
+            compute: specie.compute,
             isLearning: false,
             isPlayable: true
         });

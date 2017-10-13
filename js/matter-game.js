@@ -1,126 +1,143 @@
 /* global window, document, self, Matter */
 
-var activation = function (a) {
-    return (1 / (1 + Math.exp((-a) / 1)));
-};
-
-/**
- * Compute the output of an input.
- *
- * @param {inputs} Set of inputs.
- * @return Network output.
- */
-var compute = function (net, inputs) {
-    var i, j;
-
-    // Set the value of each Neuron in the input layer.
-    for (i in inputs) {
-        if (net.layers[0] && net.layers[0].neurons[i]) {
-            net.layers[0].neurons[i].value = inputs[i];
-        }
-    }
-
-    var prevLayer = net.layers[0]; // Previous layer is input layer.
-    for (i = 1; i < net.layers.length; i++) {
-        for (j in net.layers[i].neurons) {
-            // For each Neuron in each layer.
-            var sum = 0;
-            for (var k in prevLayer.neurons) {
-                // Every Neuron in the previous layer is an input to each Neuron in
-                // the next layer.
-                sum += prevLayer.neurons[k].value *
-                    net.layers[i].neurons[j].weights[k];
-            }
-
-            // Compute the activation of the Neuron.
-            net.layers[i].neurons[j].value = activation(sum);
-        }
-        prevLayer = net.layers[i];
-    }
-
-    // All outputs of the Network.
-    var out = [];
-    var lastLayer = net.layers[net.layers.length - 1];
-    for (i in lastLayer.neurons) {
-        out.push(lastLayer.neurons[i].value);
-    }
-    return out;
-};
-
 var GameAI = function (options) {
+    "use strict";
+
     if (!options) {
         return;
     }
 
     var defaultOptions = {
-        specie: null,
+        compute: function () {
+            return [0, 0, 0, 0];
+        },
         isLearning: false,
         isPlayable: false
     };
     options = Object.assign(defaultOptions, options);
 
-    var keys = [];
-    if (options.isPlayable) {
-        window.onkeyup = function (e) {
-            keys[e.keyCode] = false;
-        };
-        window.onkeydown = function (e) {
-            keys[e.keyCode] = true;
-        };
-    }
-
-    var Engine = Matter.Engine,
-        Render = Matter.Render,
-        World = Matter.World,
-        Events = Matter.Events,
-        Bodies = Matter.Bodies,
+    var keys,
+        engine,
         running = true,
-        score = 0;
+        score;
 
-    var engine = Engine.create();
+    var boxA, boxB;
 
-    if (!options.isLearning) {
-        var render = Render.create({
-            element: document.getElementById('game-container'),
-            //        canvas: document.getElementById('game'),
-            engine: engine,
-            options: {
-                width: 760,
-                height: 760,
-                wireframes: false
-            }
+    /**
+     * Function that is called once at the beginning.
+     */
+    function create() {
+        // set key-listeners
+        keys = [];
+        if (options.isPlayable) {
+            window.onkeyup = function (e) {
+                keys[e.keyCode] = false;
+            };
+            window.onkeydown = function (e) {
+                keys[e.keyCode] = true;
+            };
+        }
+
+        // create physics engine
+        engine = Matter.Engine.create();
+
+        // create game world
+        boxA = Matter.Bodies.circle(350, 100, 12, {
+            friction: 0,
+            frictionAir: 0.05
         });
-        Render.run(render);
-    }
+        boxB = Matter.Bodies.circle(350, 600, 12, {
+            friction: 0,
+            frictionAir: 0.05
+        });
 
-    var boxA = Bodies.circle(350, 100, 12);
-    var boxB = Bodies.circle(350, 600, 12);
+        engine.world.gravity.y = 0;
+        engine.timing.timeScale = 2;
 
-    engine.world.gravity.y = 0;
-    engine.timing.timeScale = 2;
-    //    engine.positionIterations = 16;
-    boxA.friction = 0;
-    boxB.friction = 0;
-    boxA.frictionAir = 0.05;
-    boxB.frictionAir = 0.05;
-    World.add(engine.world, [boxA, boxB]);
-
-    World.add(engine.world, [
-                Bodies.rectangle(380, 755, 760, 10, {
-            isStatic: true
-        }),
-                Bodies.rectangle(380, 5, 755, 10, {
-            isStatic: true
-        }),
-        Bodies.rectangle(5, 380, 10, 760, {
-            isStatic: true
-        }),
-        Bodies.rectangle(755, 380, 10, 760, {
-            isStatic: true
-        })
+        Matter.World.add(engine.world, [boxA, boxB]);
+        Matter.World.add(engine.world, [
+                Matter.Bodies.rectangle(380, 755, 760, 10, {
+                isStatic: true
+            }),
+                Matter.Bodies.rectangle(380, 5, 755, 10, {
+                isStatic: true
+            }),
+        Matter.Bodies.rectangle(5, 380, 10, 760, {
+                isStatic: true
+            }),
+        Matter.Bodies.rectangle(755, 380, 10, 760, {
+                isStatic: true
+            })
         ]);
 
-    Events.on(engine, "beforeUpdate", function () {
+        Matter.Events.on(engine, 'collisionStart', collision);
+
+        // create renderer if showing
+        if (!options.isLearning) {
+            var render = Matter.Render.create({
+                element: document.getElementById('game-container'),
+                engine: engine,
+                options: {
+                    width: 760,
+                    height: 760,
+                    wireframes: false
+                }
+            });
+            Matter.Render.run(render);
+        }
+    }
+
+    /**
+     * Function that is called once at the start/restart of the game
+     */
+    function start() {
+        // reset game values
+        running = true;
+        score = 0;
+
+        // reset physics engine
+        Matter.Engine.clear(engine);
+
+        // set position world objects
+        boxA.position.x = 350;
+        boxA.position.y = 100;
+        boxB.position.x = 350;
+        boxB.position.y = 600;
+
+
+        // setting up the update cycle
+        if (options.isLearning) {
+            for (var frame = 0; frame < 1000; frame++) {
+                if (!running) {
+                    break;
+                }
+                update();
+            }
+            finish();
+            return;
+        } else {
+            var runner = function () {
+                if (running) {
+                    window.requestAnimationFrame(function () {
+                        update();
+                        runner();
+                    });
+                } else {
+                    finish();
+                }
+            };
+            runner();
+        }
+
+
+    }
+
+    /**
+     * Function that is called at every update frame
+     */
+    function update() {
+        Matter.Engine.update(engine);
+
         // update enemy
         if (options.isPlayable) {
             var keyInput = [keys[39], keys[37], keys[40], keys[38]];
@@ -132,7 +149,7 @@ var GameAI = function (options) {
         }
 
         // update AI player
-        var output = compute(options.specie, [
+        var output = options.compute([
                     boxA.position.x / 760, boxA.position.y / 760,
             (boxA.velocity.x + 4) / 8, (boxA.velocity.y + 4) / 8,
                     boxB.position.x / 760, boxB.position.y / 760,
@@ -143,9 +160,12 @@ var GameAI = function (options) {
         Matter.Body.applyForce(boxB, boxB.position, Matter.Vector.mult(pushDirection, 0.0003));
 
         score += Math.floor(Math.abs(boxB.speed));
-    });
+    }
 
-    Matter.Events.on(engine, 'collisionStart', function (event) {
+    /**
+     * Called when objects collide in the physics engine
+     */
+    function collision(event) {
         if (engine.isEnabled) {
             return;
         }
@@ -158,37 +178,22 @@ var GameAI = function (options) {
                 score -= 10;
             }
         });
-    });
+    }
 
-    function upd() {
-        if (engine.timestamp > 30000) {
-            running = false;
-            return;
-        }
-
-        Matter.Engine.update(engine);
-        if (running) {
-            window.requestAnimationFrame(function () {
-                upd();
-            });
+    /**
+     * Function called only once when the game should finish completely
+     */
+    function finish() {
+        if (options.isLearning) {
+            self.postMessage(score);
+            self.close();
         }
     }
 
-    if (options.isLearning) {
-        for (var frame = 0; frame < 1000; frame++) {
-            if (!running) {
-                break;
-            }
-            Matter.Engine.update(engine);
-        }
 
-        self.postMessage(score);
-        self.close();
-
-    } else {
-        upd();
-    }
-
+    // starting up the game
+    create();
+    start();
 };
 
 GameAI();
