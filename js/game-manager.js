@@ -3,16 +3,14 @@
 var manager = (function () {
     "use strict";
 
-    var gen;
-    var generation = 0;
-    var games = [];
-    //    var renderers = [];
-    var storedResults = [];
-    var par = 20,
-        maxScore = 0,
+    var generation = 0,
+        useWorkers = true,
         lastBestScore = 0,
+        storedResults = [],
         isStopped = false,
-        neuvol = null;
+        neuvol = null,
+        games = [],
+        par = 20;
 
     function start() {
         isStopped = false;
@@ -27,20 +25,6 @@ var manager = (function () {
             network: [8, [6], 4],
         });
 
-        //        for (var r = 0; r < par; r++) {
-        //            var render = Matter.Render.create({
-        //                element: document.getElementById('game-container'),
-        //                engine: Matter.Engine.create(),
-        //                options: {
-        //                    width: 760,
-        //                    height: 760,
-        //                    wireframes: false
-        //                }
-        //            });
-        //            renderers.push(render);
-        //            Matter.Render.run(render);
-        //        }
-
         this.generation = 0;
         this.startGeneration();
     }
@@ -50,12 +34,12 @@ var manager = (function () {
     }
 
     function startGeneration() {
-        gen = neuvol.nextGeneration();
+        var gen = neuvol.nextGeneration();
         generation++;
 
-        games = gen.map(function (boid) {
+        games = gen.map(function (specie) {
             return {
-                boid: boid,
+                specie: specie,
                 game: null,
                 score: undefined
             }
@@ -73,26 +57,39 @@ var manager = (function () {
 
         games.forEach(function (row) {
             if (!row.game && parNow < par) {
-                var boid = row.boid;
+                var specie = row.specie;
                 parNow++;
 
-                row.game = new window.Worker('js/game-worker.js');
-                row.game.postMessage({
-                    name: 'specie',
-                    specie: boid.getSave() // send serialized form of network
-                });
-                row.game.onmessage = function (e) {
-                    var score = e.data;
-                    neuvol.networkScore(boid, score);
-                    row.score = score;
+                specie.compute = specie.compute.bind(specie);
 
-                    maxScore = Math.max(maxScore, score);
+                if (!useWorkers) {
+                    row.game = new GameAI({
+                        compute: specie.compute,
+                        isRendered: true,
+                        isPlayable: false,
+                        onEnd: function (score) {
+                            neuvol.networkScore(specie, score);
+                            row.score = score;
+                            nextGame();
+                        }
+                    });
+                } else {
+                    row.game = new window.Worker('js/game-worker.js');
+                    row.game.postMessage({
+                        name: 'specie',
+                        specie: specie.getSave() // send serialized form of network
+                    });
+                    row.game.onmessage = function (e) {
+                        var score = e.data;
+                        neuvol.networkScore(specie, score);
+                        row.score = score;
 
-                    nextGame();
-                };
-                row.game.onerror = function (e) {
-                    window.console.log('error:', e);
-                };
+                        nextGame();
+                    };
+                    row.game.onerror = function (e) {
+                        window.console.log('error:', e);
+                    };
+                }
             }
         });
 
@@ -103,24 +100,33 @@ var manager = (function () {
             var bestScore =
                 games.reduce(
                     function (acc, val) {
-                        var isMax = (acc[1] == undefined || val.score > acc[1]);
-                        acc[0] = isMax ? val.game : acc[0];
-                        acc[1] = isMax ? val.score : acc[1];
-                        acc[2] = isMax ? val.boid : acc[2];
+                        var isMax = (acc.score == undefined || val.score > acc.score);
+                        acc.game = isMax ? val.game : acc.game;
+                        acc.score = isMax ? val.score : acc.score;
+                        acc.specie = isMax ? val.specie : acc.specie;
                         return acc;
                     }, []
                 );
 
-            if (bestScore[1] > lastBestScore) {
-                lastBestScore = bestScore[1];
+            if (bestScore.score > lastBestScore) {
+                lastBestScore = bestScore.score;
 
                 // store best of generation
                 var x = document.getElementById("brains");
                 var option = document.createElement("option");
-                option.text = '' + generation + '. ' + bestScore[1];
+                option.text = '' + generation + '. ' + bestScore.score;
                 x.add(option);
-                storedResults.push(bestScore[2]);
+                storedResults.push(bestScore.specie);
             }
+
+            // destroy all games
+            games.forEach(function (item) {
+                if(!useWorkers){
+                    item.game.destroy();
+                } else {
+                    item.game.terminate();
+                }
+            });
 
             startGeneration();
         }
@@ -133,12 +139,12 @@ var manager = (function () {
 
         new GameAI({
             compute: specie.compute,
-            isLearning: false,
+            isRendered: true,
             isPlayable: false
         });
         new GameAI({
             compute: specie.compute,
-            isLearning: false,
+            isRendered: true,
             isPlayable: true
         });
     });

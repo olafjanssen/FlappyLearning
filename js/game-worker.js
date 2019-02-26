@@ -21,8 +21,7 @@ self.onmessage = function (event) {
     if (message.name === 'specie') {
         new GameAI({
             compute: specie.compute,
-            isLearning: true,
-            isPlayable: false,
+            isWebWorker: true,
             onEnd: function (score) {
                 self.postMessage(score);
                 self.close();

@@ -11,13 +11,16 @@ var GameAI = function (options) {
         compute: function () {
             return [0, 0, 0, 0];
         },
-        isLearning: false,
+        onEnd: function () {},
+        isWebWorker: false,
+        isRendered: false,
         isPlayable: false
     };
     options = Object.assign(defaultOptions, options);
 
     var keys,
         engine,
+        render,
         running = true,
         score;
 
@@ -73,8 +76,8 @@ var GameAI = function (options) {
         Matter.Events.on(engine, 'collisionStart', collision);
 
         // create renderer if showing
-        if (!options.isLearning) {
-            var render = Matter.Render.create({
+        if (options.isRendered) {
+            render = Matter.Render.create({
                 element: document.getElementById('game-container'),
                 engine: engine,
                 options: {
@@ -106,7 +109,7 @@ var GameAI = function (options) {
 
 
         // setting up the update cycle
-        if (options.isLearning) {
+        if (options.isWebWorker) {
             for (var frame = 0; frame < 1000; frame++) {
                 if (!running) {
                     break;
@@ -184,16 +187,28 @@ var GameAI = function (options) {
      * Function called only once when the game should finish completely
      */
     function finish() {
-        if (options.isLearning) {
-            self.postMessage(score);
-            self.close();
+        if (options.onEnd) {
+            options.onEnd(score);
         }
     }
 
+    /**
+     * Function called to clean up everthing related to this game instance
+     */
+    function destroy() {
+        if (render) {
+            Matter.Render.stop(render);
+            render.canvas.parentElement.removeChild(render.canvas);
+        }
+    }
 
     // starting up the game
     create();
     start();
+
+    return {
+        destroy: destroy
+    };
 };
 
 GameAI();
